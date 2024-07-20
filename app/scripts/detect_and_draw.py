@@ -80,12 +80,12 @@ if __name__ == "__main__":
     import torch
     from wheel_detection import SimpleCNN
 
-    input_directory = '../input/test/'
-    output_directory = '../output/faces_classification/'
+    input_directory = '../../input/test/'
+    output_directory = '../../output/faces_classification/'
 
     os.makedirs(output_directory, exist_ok=True)
     model = SimpleCNN(input_shape=(3, 256, 256), num_classes=2)
-    model_path = '../model/trained_model/simple_cnn_model4.pth'
+    model_path = '../../model/trained_model/simple_cnn_model4.pth'
     model = torch.load(model_path)
 
     for filename in os.listdir(input_directory):

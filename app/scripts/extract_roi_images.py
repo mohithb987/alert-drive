@@ -30,8 +30,8 @@ def extract_frames(video_path, output_dir):
     print(f"Extracted {saved_frame_count} frames from {video_path} to {output_dir} \n\n")
 
 
-# video_path = '../input/data/videos/train/7.mp4'
-# output_dir = '../input/data/images/train'
+# video_path = '../../input/data/videos/train/7.mp4'
+# output_dir = '../../input/data/images/train'
 # extract_frames(video_path, output_dir)
 
 
@@ -41,15 +41,15 @@ if __name__ == "__main__":
     import cv2
     from detect_and_draw import detect_and_draw_faces
 
-    input_videos_path = '../input/data/videos/train'
+    input_videos_path = '../../input/data/videos/train'
 
     for idx, vid_path in enumerate(os.listdir(input_videos_path)):
         print(f'### Extracting FRAMES from video in path: {os.path.join(input_videos_path,vid_path)}')
-        train_images_dir = f'../input/data/images/train/{idx}'
+        train_images_dir = f'../../input/data/images/train/{idx}'
         extract_frames(os.path.join(input_videos_path,vid_path), train_images_dir)
 
-        driver_rois_dir = f'../input/data/images/{idx}/driver'
-        shotgun_rois_dir = f'../input/data/images/{idx}/shotgun'
+        driver_rois_dir = f'../../input/data/images/{idx}/driver'
+        shotgun_rois_dir = f'../../input/data/images/{idx}/shotgun'
         
         os.makedirs(driver_rois_dir, exist_ok=True)
         os.makedirs(shotgun_rois_dir, exist_ok=True)

@@ -37,7 +37,7 @@ def get_relative_file_paths(directory, root_folder):
     
     return all_data
 
-def load_and_augment_images(all_data, save_dir='../input/data/steering_wheel/augmented_images'):
+def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel/augmented_images'):
     import cv2
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -216,7 +216,7 @@ def main():
     print('Starting to Train Model...')
     train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, patience=5)
     print('------ Finished Training the Model ------')
-    model_path = '../model/trained_model/simple_cnn_model4.pth'
+    model_path = '../../model/trained_model/simple_cnn_model4.pth'
     torch.save(model, model_path)
 
 if __name__ == "__main__":
