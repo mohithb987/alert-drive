@@ -11,5 +11,3 @@ def resize_images(input_directory, output_directory, size=(256, 256)):
                 img_resized = img.resize(size)
                 img_resized.save(os.path.join(output_directory, filename))
             print(f"Resized and saved {filename}")
-        else:
-            print(f"Skipped {filename}")

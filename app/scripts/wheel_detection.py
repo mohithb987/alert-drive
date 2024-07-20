@@ -1,3 +1,5 @@
+# converted notebooks/detect_wheel.ipynb to .py
+
 import os
 import glob
 import numpy as np
@@ -56,7 +58,7 @@ def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel/
         if idx % 2 == 1:
             img = transforms.functional.hflip(img)
         transformed_img = transform(img)
-        numpy_img = (transformed_img.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        numpy_img = (transformed_img.permute(1, 2, 0).numpy()*255).astype(np.uint8)
         bgr_img = cv2.cvtColor(numpy_img, cv2.COLOR_RGB2BGR)
         cv2.imwrite(os.path.join(save_dir, f'_{idx}.jpg'), bgr_img)
         augmented_images.append(transformed_img)
@@ -87,7 +89,10 @@ class SimpleCNN(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
-        self.flatten_dim = self._get_flatten_dim(input_shape)
+        x = torch.randn(1, *input_shape)
+        x = self.features(x)
+        self.flatten_dim = x.view(x.size(0), -1).size(1)
+
         self.classifier = nn.Sequential(
             nn.Linear(self.flatten_dim, 512),
             nn.ReLU(inplace=True),
@@ -98,11 +103,6 @@ class SimpleCNN(nn.Module):
             nn.Linear(256, num_classes)
         )
         self.softmax = nn.Softmax(dim=1)
-
-    def _get_flatten_dim(self, shape):
-        x = torch.randn(1, *shape)
-        x = self.features(x)
-        return x.view(1, -1).size(1)
 
     def forward(self, x):
         x = self.features(x)
@@ -117,7 +117,7 @@ class SimpleCNN(nn.Module):
 def calculate_accuracy(outputs, labels):
     _, predicted = torch.max(outputs, 1)
     correct = (predicted == labels).sum().item()
-    accuracy = correct / labels.size(0)
+    accuracy = correct/labels.size(0)
     return accuracy
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, patience=5):
@@ -129,64 +129,55 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         train_loss = 0.0
         train_correct = 0
         train_total = 0
-        
         for inputs, labels in tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}', leave=False):
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            train_loss += loss.item() * inputs.size(0)
-            train_total += labels.size(0)
+            train_loss+= loss.item()*inputs.size(0)
+            train_total+= labels.size(0)
             _, predicted = torch.max(outputs, 1)
-            train_correct += (predicted == labels).sum().item()
+            train_correct+= (predicted == labels).sum().item()
         
-        train_loss = train_loss / len(train_loader.dataset)
-        train_accuracy = train_correct / train_total
-        
+        train_loss = train_loss/len(train_loader.dataset)
+        train_accuracy = train_correct/train_total
         model.eval()
         val_loss = 0.0
         val_correct = 0
         val_total = 0
-        
         with torch.no_grad():
             for inputs, labels in val_loader:
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
-                val_loss += loss.item() * inputs.size(0)
-                val_total += labels.size(0)
+                val_loss+= loss.item()*inputs.size(0)
+                val_total+= labels.size(0)
                 _, predicted = torch.max(outputs, 1)
-                val_correct += (predicted == labels).sum().item()
-        
-        val_loss = val_loss / len(val_loader.dataset)
-        val_accuracy = val_correct / val_total
+                val_correct+= (predicted == labels).sum().item()
+        val_loss = val_loss/len(val_loader.dataset)
+        val_accuracy = val_correct/val_total
         
         print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Acc: {val_accuracy:.4f}')
-        
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             no_improvement_count = 0
         else:
-            no_improvement_count += 1
+            no_improvement_count+= 1
         
         if no_improvement_count >= patience:
             print(f'Early stopping after epoch {epoch+1}')
             break
 
-
 def main():
     directory = '../input/data/images/'  
     root_folder = '../'
-    
     all_data = get_relative_file_paths(directory, root_folder)
     X_augmented, y_augmented = load_and_augment_images(all_data)
-
     random_state = 42
-    X_train, X_val, y_train, y_val = train_test_split(X_augmented, y_augmented, test_size=0.2, random_state=random_state)
 
+    X_train, X_val, y_train, y_val = train_test_split(X_augmented, y_augmented, test_size=0.2, random_state=random_state)
     X_train, X_val = torch.tensor(X_train), torch.tensor(X_val)
     y_train, y_val = torch.tensor(y_train), torch.tensor(y_val)
-
     print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
     print(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
 
@@ -206,7 +197,6 @@ def main():
     batch_size = 16
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
-
     print('Len Train Loader: ', len(train_loader))
     print('Len Val Loader: ', len(val_loader))
 
@@ -216,6 +206,7 @@ def main():
     print('Starting to Train Model...')
     train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, patience=5)
     print('------ Finished Training the Model ------')
+    
     model_path = '../../model/trained_model/simple_cnn_model4.pth'
     torch.save(model, model_path)
 

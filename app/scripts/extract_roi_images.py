@@ -22,9 +22,9 @@ def extract_frames(video_path, output_dir):
         if frame_count % fps == 0:
             frame_filename = os.path.join(output_dir, f"frame_{saved_frame_count:05d}.jpg")
             cv2.imwrite(frame_filename, frame)
-            saved_frame_count += 1
+            saved_frame_count+= 1
 
-        frame_count += 1
+        frame_count+= 1
 
     video_capture.release()
     print(f"Extracted {saved_frame_count} frames from {video_path} to {output_dir} \n\n")
