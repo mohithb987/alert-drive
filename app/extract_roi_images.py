@@ -27,7 +27,7 @@ def extract_frames(video_path, output_dir):
         frame_count += 1
 
     video_capture.release()
-    print(f"Extracted {saved_frame_count} frames from {video_path} to {output_dir}")
+    print(f"Extracted {saved_frame_count} frames from {video_path} to {output_dir} \n\n")
 
 
 # video_path = '../input/data/videos/train/7.mp4'
@@ -41,29 +41,36 @@ if __name__ == "__main__":
     import cv2
     from detect_and_draw import detect_and_draw_faces
 
-    driver_rois_dir = '../input/data/images/driver'
-    shotgun_rois_dir = '../input/data/images/shotgun'
-    input_dir = '../input/data/images/train'
-    os.makedirs(driver_rois_dir, exist_ok=True)
-    os.makedirs(shotgun_rois_dir, exist_ok=True)
+    input_videos_path = '../input/data/videos/train'
 
-    for filename in os.listdir(input_dir):
-        if filename.endswith('.jpg'):
-            image_path = os.path.join(input_dir, filename)
-            print("######## Path: ", image_path)
-            img = cv2.imread(image_path)
-            marked_img, p1, p2 = detect_and_draw_faces(img)
-            if p1 and p2:
-                d_roi = marked_img[p1[1]:p1[3], p1[0]:p1[2]]
-                s_roi = marked_img[p2[1]:p2[3], p2[0]:p2[2]]
-                if d_roi.size > 0 and s_roi.size > 0:
-                    d_roi_path = os.path.join(driver_rois_dir, filename)
-                    s_roi_path = os.path.join(shotgun_rois_dir, filename)
-                    cv2.imwrite(d_roi_path, d_roi)
-                    cv2.imwrite(s_roi_path, s_roi)
+    for idx, vid_path in enumerate(os.listdir(input_videos_path)):
+        print(f'### Extracting FRAMES from video in path: {os.path.join(input_videos_path,vid_path)}')
+        train_images_dir = f'../input/data/images/train/{idx}'
+        extract_frames(os.path.join(input_videos_path,vid_path), train_images_dir)
+
+        driver_rois_dir = f'../input/data/images/{idx}/driver'
+        shotgun_rois_dir = f'../input/data/images/{idx}/shotgun'
+        
+        os.makedirs(driver_rois_dir, exist_ok=True)
+        os.makedirs(shotgun_rois_dir, exist_ok=True)
+
+        for filename in os.listdir(train_images_dir):
+            if filename.endswith('.jpg'):
+                image_path = os.path.join(train_images_dir, filename)
+                print("######## Image Frame Path for classification: ", image_path)
+                img = cv2.imread(image_path)
+                marked_img, f1, f2, p1, p2 = detect_and_draw_faces(img)
+                if p1 and p2:
+                    d_roi = marked_img[p1[1]:p1[3], p1[0]:p1[2]]
+                    s_roi = marked_img[p2[1]:p2[3], p2[0]:p2[2]]
+                    if d_roi.size > 0 and s_roi.size > 0:
+                        d_roi_path = os.path.join(driver_rois_dir, filename)
+                        s_roi_path = os.path.join(shotgun_rois_dir, filename)
+                        cv2.imwrite(d_roi_path, d_roi)
+                        cv2.imwrite(s_roi_path, s_roi)
+                    else:
+                        print(f"Empty ROI detected for {filename}")
                 else:
-                    print(f"Empty ROI detected for {filename}")
-            else:
-                print(f"Invalid coordinates for {filename}")
+                    print(f"Invalid coordinates for {filename}")
 
 
