@@ -39,14 +39,33 @@ def get_relative_file_paths(directory, root_folder):
     
     return all_data
 
-def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel/augmented_images'):
+def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_2/augmented_images_2'):
     import cv2
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((256, 256))
-    ])
+    from PIL import Image, ImageFilter
     
-    root_dir = '../'
+    class OverlayCannyEdges:
+        def __init__(self, low_threshold=50, high_threshold=150):
+            self.low_threshold = low_threshold
+            self.high_threshold = high_threshold
+
+        def __call__(self, img):
+            # Convert PIL image to NumPy array
+            img_np = np.array(img)
+            # Apply Canny edge detection
+            edges = cv2.Canny(img_np, self.low_threshold, self.high_threshold)
+            # Overlay edges on the original image
+            overlay = np.maximum(img_np, edges)
+            # Convert back to PIL Image
+            return Image.fromarray(overlay)
+
+    transform = transforms.Compose([
+        transforms.Resize((200, 200)),  # Resize to desired dimensions
+        transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
+        OverlayCannyEdges(low_threshold=50, high_threshold=150),  # Apply and overlay Canny edge detection
+        transforms.ToTensor(),  # Convert PIL Image to tensor
+    ])
+
+    root_dir = '../../'
     augmented_images = []
     augmented_labels = []
 
@@ -55,8 +74,6 @@ def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel/
 
     for idx, (file_path, label) in enumerate(all_data.items()):
         img = Image.open(os.path.join(root_dir, file_path))
-        if idx % 2 == 1:
-            img = transforms.functional.hflip(img)
         transformed_img = transform(img)
         numpy_img = (transformed_img.permute(1, 2, 0).numpy()*255).astype(np.uint8)
         bgr_img = cv2.cvtColor(numpy_img, cv2.COLOR_RGB2BGR)
@@ -72,45 +89,41 @@ def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel/
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
+import torch.nn as nn
+
 class SimpleCNN(nn.Module):
     def __init__(self, input_shape, num_classes):
         super(SimpleCNN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),  # Grayscale images have 1 channel
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
-        x = torch.randn(1, *input_shape)
-        x = self.features(x)
-        self.flatten_dim = x.view(x.size(0), -1).size(1)
-
+        # Calculate the shape of the output after conv layers to feed into fully connected layers
+        self.flatten_dim = self._get_flatten_dim(input_shape)
         self.classifier = nn.Sequential(
-            nn.Linear(self.flatten_dim, 512),
+            nn.Linear(self.flatten_dim, 256),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
-            nn.Linear(512, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
             nn.Linear(256, num_classes)
         )
-        self.softmax = nn.Softmax(dim=1)
+
+    def _get_flatten_dim(self, shape):
+        x = torch.randn(1, *shape)
+        x = self.features(x)
+        return x.view(1, -1).size(1)
 
     def forward(self, x):
         x = self.features(x)
-        x = x.view(x.size(0), -1)
-        logits = self.classifier(x)
-        probabilities = self.softmax(logits)
-        return probabilities
-
+        x = x.view(x.size(0), -1)  # flatten the tensor
+        x = self.classifier(x)
+        return x
 
 
 
@@ -169,36 +182,40 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             break
 
 def main():
-    directory = '../input/data/images/'  
-    root_folder = '../'
+    directory = '../../input/data/train_images_2/'  
+    root_folder = '../../'
     all_data = get_relative_file_paths(directory, root_folder)
     X_augmented, y_augmented = load_and_augment_images(all_data)
     random_state = 42
 
-    X_train, X_val, y_train, y_val = train_test_split(X_augmented, y_augmented, test_size=0.2, random_state=random_state)
-    X_train, X_val = torch.tensor(X_train), torch.tensor(X_val)
-    y_train, y_val = torch.tensor(y_train), torch.tensor(y_val)
+    X_train_val, X_test, y_train_val, y_test = train_test_split(X_augmented, y_augmented, test_size=0.1, random_state=random_state)
+    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=random_state)
+
+    # Converting to PyTorch tensors
+    X_train, X_val, X_test = torch.tensor(X_train), torch.tensor(X_val), torch.tensor(X_test)
+    y_train, y_val, y_test = torch.tensor(y_train), torch.tensor(y_val), torch.tensor(y_test)
+
     print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
     print(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
+    print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
-    input_shape = (3, 256, 256)
+    input_shape = (1,200, 200)
     num_classes = 2
     model = SimpleCNN(input_shape, num_classes)
     print(model)
 
-    X_train_tensor = torch.Tensor(X_train)
-    y_train_tensor = torch.LongTensor(y_train)
-    X_val_tensor = torch.Tensor(X_val)
-    y_val_tensor = torch.LongTensor(y_val)
+    train_dataset = TensorDataset(X_train, y_train)
+    val_dataset = TensorDataset(X_val, y_val)
+    test_dataset = TensorDataset(X_test, y_test)
 
-    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-    val_dataset = TensorDataset(X_val_tensor, y_val_tensor)
-
-    batch_size = 16
+    batch_size = 8
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
     print('Len Train Loader: ', len(train_loader))
     print('Len Val Loader: ', len(val_loader))
+    print('Len Test Loader: ', len(test_loader))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -207,8 +224,24 @@ def main():
     train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, patience=5)
     print('------ Finished Training the Model ------')
     
-    model_path = '../../model/trained_model/simple_cnn_model4.pth'
+    model_path = '../../model/trained_model/simple_cnn_model7.pth'
     torch.save(model, model_path)
+
+    model.eval()
+    test_loss = 0.0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            test_loss += loss.item() * inputs.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+    test_accuracy = 100 * correct / total
+    test_loss /= total
+    print(f'Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%')
 
 if __name__ == "__main__":
     main()
