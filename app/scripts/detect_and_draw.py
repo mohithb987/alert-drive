@@ -148,13 +148,14 @@ if __name__ == "__main__":
     output_directory = '../../output/faces_classification_2/'
     os.makedirs(output_directory, exist_ok=True)
     for dir_idx, input_directory in enumerate(input_directories):
+        print(f'dir_idx: {dir_idx} |  Input Directory: {input_directory}')
         if input_directory == '.DS_Store':
                 continue
         for idx, filename in enumerate(os.listdir(os.path.join(f'../../input/data/test_images_2/',input_directory))):
             if filename == '.DS_Store':
                 continue
             image_path = os.path.join('../../input/data/test_images_2/',input_directory, filename)
-            output_path = os.path.join(output_directory,f'/{dir_idx}/detected_{filename}')
+            output_path = os.path.join(output_directory,f'{dir_idx}_detected_{filename}')
             
             image = cv2.imread(image_path)
             if image is None:
@@ -162,6 +163,9 @@ if __name__ == "__main__":
             
             _, face1, face2, p1_coordinates, p2_coordinates = detect_and_draw_faces(image)
             
+            if not p1_coordinates:
+                continue
+
             if not p2_coordinates:
                 p1_region = image[p1_coordinates[1]:p1_coordinates[3], p1_coordinates[0]:p1_coordinates[2]]
                 p1_confidence = predict_confidence(f'p1_{idx}', p1_region, model)
