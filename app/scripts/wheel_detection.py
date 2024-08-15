@@ -1,4 +1,4 @@
-# converted notebooks/detect_wheel.ipynb to .py
+#converted notebooks/detect_wheel.ipynb to .py
 
 import os
 import glob
@@ -42,27 +42,10 @@ def get_relative_file_paths(directory, root_folder):
 def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_2/augmented_images_2'):
     import cv2
     from PIL import Image, ImageFilter
-    
-    class OverlayCannyEdges:
-        def __init__(self, low_threshold=50, high_threshold=150):
-            self.low_threshold = low_threshold
-            self.high_threshold = high_threshold
-
-        def __call__(self, img):
-            # Convert PIL image to NumPy array
-            img_np = np.array(img)
-            # Apply Canny edge detection
-            edges = cv2.Canny(img_np, self.low_threshold, self.high_threshold)
-            # Overlay edges on the original image
-            overlay = np.maximum(img_np, edges)
-            # Convert back to PIL Image
-            return Image.fromarray(overlay)
 
     transform = transforms.Compose([
-        transforms.Resize((200, 200)),  # Resize to desired dimensions
-        transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
-        OverlayCannyEdges(low_threshold=50, high_threshold=150),  # Apply and overlay Canny edge detection
-        transforms.ToTensor(),  # Convert PIL Image to tensor
+        transforms.ToTensor(),
+        transforms.Resize((256, 256)),
     ])
 
     root_dir = '../../'
