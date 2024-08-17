@@ -400,8 +400,6 @@ FodyWeavers.xsd
 .venv/
 .ipynb_checkpoints/
 input/
-model/
 output/
 .DS_Store
-dataset/
 runs/
