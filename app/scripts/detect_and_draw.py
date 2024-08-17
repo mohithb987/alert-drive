@@ -3,18 +3,25 @@ import os
 import numpy as np
 import mediapipe as mp
 
-mp_face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
 
 def detect_faces_sort_by_area(image):
+    """
+    Detects faces and returns the boxes sorted in decreasing order of their area.
+    """
     img_height, img_width, _ = image.shape
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    mp_face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
     results = mp_face_detection.process(image_rgb)    
     faces = []
     if results.detections:
         for detection in results.detections:
             bboxC = detection.location_data.relative_bounding_box
-            xmin, ymin, width, height = int(bboxC.xmin*img_width), int(bboxC.ymin*img_height), int(bboxC.width*img_width), int(bboxC.height*img_height)
-            xmax, ymax = xmin+width, ymin+height
+            xmin = int(bboxC.xmin * img_width)
+            ymin = int(bboxC.ymin * img_height)
+            width = int(bboxC.width * img_width)
+            height = int(bboxC.height * img_height)
+            xmax = xmin+width
+            ymax = ymin+height
             area = width*height
             faces.append({'bbox': (xmin, ymin, xmax, ymax), 'area': area})
 
@@ -25,6 +32,11 @@ def detect_faces_sort_by_area(image):
 
 
 def detect_and_draw_faces(image):
+    """
+    Returns the 2 largest faces (driver and shotgun passenger) along with
+    region below their faces to perform steering wheel detection
+    """
+
     import cv2
     import math
     faces_sorted = detect_faces_sort_by_area(image)
@@ -48,12 +60,10 @@ def detect_and_draw_faces(image):
             # label = 'Driver?'
             # cv2.rectangle(image, (x, y), (xmax, ymax), color, 2)
             # cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-            
             # Capture area below the face to perform steering wheel detection
-            face1 = [x, y, xmax, ymax]
+            face1 = face
             orange_box_start_y = ymax + math.ceil(0.5*(image.shape[0] - ymax))          # !!!!! Updated to reduce ROI area !!!!!!
             orange_box_end_y = image.shape[0]
-            
             # cv2.rectangle(image, (orange_box_start_x, orange_box_start_y), (orange_box_end_x, orange_box_end_y), (0, 165, 255), 2)
             p1_coordinates = [orange_box_start_x, orange_box_start_y, orange_box_end_x, orange_box_end_y]
 
@@ -62,12 +72,10 @@ def detect_and_draw_faces(image):
             # label = 'Shotgun Passenger?'
             # cv2.rectangle(image, (x, y), (xmax, ymax), color, 2)
             # cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-
             # Capturing area below the face to perform steering wheel detection
-            face2 = [x, y, xmax, ymax]
+            face2 = face
             orange_box_start_y = ymax + math.ceil(0.5*(image.shape[0] - ymax))          # !!!!! Updated to reduce ROI area !!!!!!
             orange_box_end_y = image.shape[0]
-            
             # cv2.rectangle(image, (orange_box_start_x, orange_box_start_y), (orange_box_end_x, orange_box_end_y), (0, 165, 255), 2)
             p2_coordinates = [orange_box_start_x, orange_box_start_y, orange_box_end_x, orange_box_end_y]
         
@@ -76,39 +84,27 @@ def detect_and_draw_faces(image):
 
     return image, face1, face2, p1_coordinates, p2_coordinates
 
-def predict_confidence(idx, image_region, model):    
+def get_confidence(idx, image_region, model):    
+    """
+    Returns confidence of steering wheel presence in the given image.
+    """
+    import torch
     from torchvision import transforms
     from PIL import Image, ImageFilter
     import cv2
 
     image_region_pil = Image.fromarray(image_region)
 
-    class OverlayCannyEdges:
-        def __init__(self, low_threshold=50, high_threshold=150):
-            self.low_threshold = low_threshold
-            self.high_threshold = high_threshold
-
-        def __call__(self, img):
-            # Convert PIL image to NumPy array
-            img_np = np.array(img)
-            # Apply Canny edge detection
-            edges = cv2.Canny(img_np, self.low_threshold, self.high_threshold)
-            # Overlay edges on the original image
-            overlay = np.maximum(img_np, edges)
-            # Convert back to PIL Image
-            return Image.fromarray(overlay)
-
     transform = transforms.Compose([
-        transforms.Resize((200, 200)),  # Resize to desired dimensions
-        transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
-        OverlayCannyEdges(low_threshold=50, high_threshold=150),  # Apply and overlay Canny edge detection
-        transforms.ToTensor(),  # Convert PIL Image to tensor
+        transforms.Resize((200, 200)),
+        transforms.Grayscale(num_output_channels=1),
+        transforms.ToTensor(),
     ])
 
     transformed_img = transform(image_region_pil)
     numpy_img = (transformed_img.permute(1, 2, 0).numpy()*255).astype(np.uint8)
     bgr_img = cv2.cvtColor(numpy_img, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(os.path.join('../../input/data/steering_wheel/output_augmented_images', f'_{idx}.jpg'), bgr_img)
+    # cv2.imwrite(os.path.join('../../input/data/steering_wheel/output_augmented_images', f'_{idx}.jpg'), bgr_img)
 
     transformed_imgs = []
     transformed_imgs.append(transformed_img)
@@ -168,9 +164,9 @@ if __name__ == "__main__":
 
             if not p2_coordinates:
                 p1_region = image[p1_coordinates[1]:p1_coordinates[3], p1_coordinates[0]:p1_coordinates[2]]
-                p1_confidence = predict_confidence(f'p1_{idx}', p1_region, model)
+                p1_confidence = get_confidence(f'p1_{idx}', p1_region, model)
 
-                p1_color = (0, 255, 0)  # Green color for 'Driver'
+                p1_color = (0, 255, 0)  #Green color for 'Driver'
                 p1_label = 'Driver'
 
                 cv2.rectangle(image, (face1[0], face1[1]), (face1[2], face1[3]), p1_color, 2)
@@ -180,14 +176,14 @@ if __name__ == "__main__":
                 cv2.waitKey(0)
             else:
                 p1_region = image[p1_coordinates[1]:p1_coordinates[3], p1_coordinates[0]:p1_coordinates[2]]
-                p1_confidence = predict_confidence(f'p1_{idx}', p1_region, model)
+                p1_confidence = get_confidence(f'p1_{idx}', p1_region, model)
                 # p1_label = f'Confidence: Class 0 {p1_confidence[0]:.2f}, Class 1 {p1_confidence[1]:.2f}'
                 # cv2.putText(image_with_bounding_boxes, p1_label, (p1_coordinates[0], p1_coordinates[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 165, 255), 2)
                 print('### P1 Region Shape:', p1_region.shape)
                 cv2.imshow(f'Region 1', p1_region)
 
                 p2_region = image[p2_coordinates[1]:p2_coordinates[3], p2_coordinates[0]:p2_coordinates[2]]
-                p2_confidence = predict_confidence(f'p2_{idx}', p2_region, model)
+                p2_confidence = get_confidence(f'p2_{idx}', p2_region, model)
                 # p2_label = f'Confidence: Class 0 {p2_confidence[0]:.2f}, Class 1 {p2_confidence[1]:.2f}'
                 # cv2.putText(image_with_bounding_boxes, p2_label, (p2_coordinates[0], p2_coordinates[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 165, 255), 2)
                 cv2.imshow(f'Region 2:', p2_region)

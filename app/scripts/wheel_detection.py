@@ -1,4 +1,4 @@
-# converted notebooks/detect_wheel.ipynb to .py
+#converted notebooks/detect_wheel.ipynb to .py
 
 import os
 import glob
@@ -42,27 +42,10 @@ def get_relative_file_paths(directory, root_folder):
 def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_2/augmented_images_2'):
     import cv2
     from PIL import Image, ImageFilter
-    
-    class OverlayCannyEdges:
-        def __init__(self, low_threshold=50, high_threshold=150):
-            self.low_threshold = low_threshold
-            self.high_threshold = high_threshold
-
-        def __call__(self, img):
-            # Convert PIL image to NumPy array
-            img_np = np.array(img)
-            # Apply Canny edge detection
-            edges = cv2.Canny(img_np, self.low_threshold, self.high_threshold)
-            # Overlay edges on the original image
-            overlay = np.maximum(img_np, edges)
-            # Convert back to PIL Image
-            return Image.fromarray(overlay)
 
     transform = transforms.Compose([
-        transforms.Resize((200, 200)),  # Resize to desired dimensions
-        transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
-        OverlayCannyEdges(low_threshold=50, high_threshold=150),  # Apply and overlay Canny edge detection
-        transforms.ToTensor(),  # Convert PIL Image to tensor
+        transforms.ToTensor(),
+        transforms.Resize((256, 256)),
     ])
 
     root_dir = '../../'
@@ -96,7 +79,7 @@ class SimpleCNN(nn.Module):
     def __init__(self, input_shape, num_classes):
         super(SimpleCNN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),  # Grayscale images have 1 channel
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
@@ -106,7 +89,7 @@ class SimpleCNN(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
-        # Calculate the shape of the output after conv layers to feed into fully connected layers
+
         self.flatten_dim = self._get_flatten_dim(input_shape)
         self.classifier = nn.Sequential(
             nn.Linear(self.flatten_dim, 256),
@@ -121,7 +104,7 @@ class SimpleCNN(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
-        x = x.view(x.size(0), -1)  # flatten the tensor
+        x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
 
@@ -191,7 +174,6 @@ def main():
     X_train_val, X_test, y_train_val, y_test = train_test_split(X_augmented, y_augmented, test_size=0.1, random_state=random_state)
     X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=random_state)
 
-    # Converting to PyTorch tensors
     X_train, X_val, X_test = torch.tensor(X_train), torch.tensor(X_val), torch.tensor(X_test)
     y_train, y_val, y_test = torch.tensor(y_train), torch.tensor(y_val), torch.tensor(y_test)
 
