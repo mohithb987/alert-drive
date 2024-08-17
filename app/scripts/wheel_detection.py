@@ -1,5 +1,3 @@
-#converted notebooks/detect_wheel.ipynb to .py
-
 import os
 import glob
 import numpy as np
@@ -11,6 +9,9 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from paths import TRAIN_VIDEOS_PATH, INTERMEDIATE_ROI_PATH, SAVED_MODELS_DIR_PATH, INTERMEDIATE_CLASSIFICATION_PATH, STEERING_WHEEL_AUGMENTED_IMAGES_PATH
 
 def get_relative_file_paths(directory, root_folder):
     root_folder_abs_path = os.path.abspath(root_folder)
@@ -39,16 +40,15 @@ def get_relative_file_paths(directory, root_folder):
     
     return all_data
 
-def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_2/augmented_images_2'):
+def load_and_augment_images(all_data, save_dir=STEERING_WHEEL_AUGMENTED_IMAGES_PATH):
     import cv2
-    from PIL import Image, ImageFilter
+    from PIL import Image
 
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Resize((256, 256)),
     ])
 
-    root_dir = '../../'
     augmented_images = []
     augmented_labels = []
 
@@ -56,7 +56,7 @@ def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_
         os.makedirs(save_dir)
 
     for idx, (file_path, label) in enumerate(all_data.items()):
-        img = Image.open(os.path.join(root_dir, file_path))
+        img = Image.open(file_path)
         transformed_img = transform(img)
         numpy_img = (transformed_img.permute(1, 2, 0).numpy()*255).astype(np.uint8)
         bgr_img = cv2.cvtColor(numpy_img, cv2.COLOR_RGB2BGR)
@@ -68,12 +68,6 @@ def load_and_augment_images(all_data, save_dir='../../input/data/steering_wheel_
     print('Len augmented augmented_labels:', len(augmented_labels))
 
     return torch.stack(augmented_images), np.array(augmented_labels)
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch
-import torch.nn as nn
 
 class SimpleCNN(nn.Module):
     def __init__(self, input_shape, num_classes):
@@ -108,8 +102,6 @@ class SimpleCNN(nn.Module):
         x = self.classifier(x)
         return x
 
-
-
 def calculate_accuracy(outputs, labels):
     _, predicted = torch.max(outputs, 1)
     correct = (predicted == labels).sum().item()
@@ -131,13 +123,13 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            train_loss+= loss.item()*inputs.size(0)
-            train_total+= labels.size(0)
+            train_loss += loss.item() * inputs.size(0)
+            train_total += labels.size(0)
             _, predicted = torch.max(outputs, 1)
-            train_correct+= (predicted == labels).sum().item()
+            train_correct += (predicted == labels).sum().item()
         
-        train_loss = train_loss/len(train_loader.dataset)
-        train_accuracy = train_correct/train_total
+        train_loss = train_loss / len(train_loader.dataset)
+        train_accuracy = train_correct / train_total
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -146,31 +138,30 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             for inputs, labels in val_loader:
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
-                val_loss+= loss.item()*inputs.size(0)
-                val_total+= labels.size(0)
+                val_loss += loss.item() * inputs.size(0)
+                val_total += labels.size(0)
                 _, predicted = torch.max(outputs, 1)
-                val_correct+= (predicted == labels).sum().item()
-        val_loss = val_loss/len(val_loader.dataset)
-        val_accuracy = val_correct/val_total
+                val_correct += (predicted == labels).sum().item()
+        val_loss = val_loss / len(val_loader.dataset)
+        val_accuracy = val_correct / val_total
         
         print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Acc: {val_accuracy:.4f}')
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             no_improvement_count = 0
         else:
-            no_improvement_count+= 1
+            no_improvement_count += 1
         
         if no_improvement_count >= patience:
             print(f'Early stopping after epoch {epoch+1}')
             break
 
 def main():
-    directory = '../../input/data/train_images_2/'  
-    root_folder = '../../'
-    all_data = get_relative_file_paths(directory, root_folder)
+    directory = os.path.join(TRAIN_VIDEOS_PATH, 'train_images')
+    all_data = get_relative_file_paths(directory, TRAIN_VIDEOS_PATH)
     X_augmented, y_augmented = load_and_augment_images(all_data)
-    random_state = 42
 
+    random_state = 42
     X_train_val, X_test, y_train_val, y_test = train_test_split(X_augmented, y_augmented, test_size=0.1, random_state=random_state)
     X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=random_state)
 
@@ -181,7 +172,7 @@ def main():
     print(f"X_val shape: {X_val.shape}, y_val shape: {y_val.shape}")
     print(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
-    input_shape = (1,200, 200)
+    input_shape = (1, 200, 200)
     num_classes = 2
     model = SimpleCNN(input_shape, num_classes)
     print(model)
@@ -196,34 +187,16 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     print('Len Train Loader: ', len(train_loader))
-    print('Len Val Loader: ', len(val_loader))
+    print('Len Val Loader:', len(val_loader))
     print('Len Test Loader: ', len(test_loader))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+    train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20)
+    print('Training Finished')
+    torch.save(model.state_dict(), os.path.join(SAVED_MODELS_DIR_PATH, 'simple_cnn.pth'))
+    print('Model Saved to', SAVED_MODELS_DIR_PATH)
 
-    print('Starting to Train Model...')
-    train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, patience=5)
-    print('------ Finished Training the Model ------')
-    
-    model_path = '../../model/trained_model/simple_cnn_model7.pth'
-    torch.save(model, model_path)
-
-    model.eval()
-    test_loss = 0.0
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for inputs, targets in test_loader:
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            test_loss += loss.item() * inputs.size(0)
-            _, predicted = torch.max(outputs.data, 1)
-            total += targets.size(0)
-            correct += (predicted == targets).sum().item()
-    test_accuracy = 100 * correct / total
-    test_loss /= total
-    print(f'Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%')
 
 if __name__ == "__main__":
     main()
