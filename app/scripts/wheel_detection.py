@@ -79,7 +79,7 @@ class SimpleCNN(nn.Module):
     def __init__(self, input_shape, num_classes):
         super(SimpleCNN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),  # Grayscale images have 1 channel
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
@@ -89,7 +89,7 @@ class SimpleCNN(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
-        # Calculate the shape of the output after conv layers to feed into fully connected layers
+
         self.flatten_dim = self._get_flatten_dim(input_shape)
         self.classifier = nn.Sequential(
             nn.Linear(self.flatten_dim, 256),
@@ -104,7 +104,7 @@ class SimpleCNN(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
-        x = x.view(x.size(0), -1)  # flatten the tensor
+        x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
 
@@ -174,7 +174,6 @@ def main():
     X_train_val, X_test, y_train_val, y_test = train_test_split(X_augmented, y_augmented, test_size=0.1, random_state=random_state)
     X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.2, random_state=random_state)
 
-    # Converting to PyTorch tensors
     X_train, X_val, X_test = torch.tensor(X_train), torch.tensor(X_val), torch.tensor(X_test)
     y_train, y_val, y_test = torch.tensor(y_train), torch.tensor(y_val), torch.tensor(y_test)
 

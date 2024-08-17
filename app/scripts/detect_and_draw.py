@@ -60,12 +60,10 @@ def detect_and_draw_faces(image):
             # label = 'Driver?'
             # cv2.rectangle(image, (x, y), (xmax, ymax), color, 2)
             # cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-            
             # Capture area below the face to perform steering wheel detection
             face1 = face
             orange_box_start_y = ymax + math.ceil(0.5*(image.shape[0] - ymax))          # !!!!! Updated to reduce ROI area !!!!!!
             orange_box_end_y = image.shape[0]
-            
             # cv2.rectangle(image, (orange_box_start_x, orange_box_start_y), (orange_box_end_x, orange_box_end_y), (0, 165, 255), 2)
             p1_coordinates = [orange_box_start_x, orange_box_start_y, orange_box_end_x, orange_box_end_y]
 
@@ -74,12 +72,10 @@ def detect_and_draw_faces(image):
             # label = 'Shotgun Passenger?'
             # cv2.rectangle(image, (x, y), (xmax, ymax), color, 2)
             # cv2.putText(image, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-
             # Capturing area below the face to perform steering wheel detection
             face2 = face
             orange_box_start_y = ymax + math.ceil(0.5*(image.shape[0] - ymax))          # !!!!! Updated to reduce ROI area !!!!!!
             orange_box_end_y = image.shape[0]
-            
             # cv2.rectangle(image, (orange_box_start_x, orange_box_start_y), (orange_box_end_x, orange_box_end_y), (0, 165, 255), 2)
             p2_coordinates = [orange_box_start_x, orange_box_start_y, orange_box_end_x, orange_box_end_y]
         
@@ -170,7 +166,7 @@ if __name__ == "__main__":
                 p1_region = image[p1_coordinates[1]:p1_coordinates[3], p1_coordinates[0]:p1_coordinates[2]]
                 p1_confidence = get_confidence(f'p1_{idx}', p1_region, model)
 
-                p1_color = (0, 255, 0)  # Green color for 'Driver'
+                p1_color = (0, 255, 0)  #Green color for 'Driver'
                 p1_label = 'Driver'
 
                 cv2.rectangle(image, (face1[0], face1[1]), (face1[2], face1[3]), p1_color, 2)
